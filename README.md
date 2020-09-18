@@ -9,10 +9,123 @@ dva 通过 model 的概念把一个领域的模型管理起来，包含同步更
 ## 简单例子
 
 
-- [一个基于umi、antd、dva的简单CURD项目，非常适合入门](https://github.com/FunnyLiu/dva/blob/readsource/examples/user-dashboard/pages/users)
+- [一个基于umi、antd、dva的简单CURD项目，非常适合入门](https://github.com/FunnyLiu/dva/tree/readsource/examples/user-dashboard)
 
 - [antdesignPro，基于antd、dva的中后台解决方案，一个比较复杂点的real world型项目](https://github.com/FunnyLiu/ant-design-pro/blob/readsource/src/layouts/SecurityLayout.tsx#L24)
 
+
+## 文件结构
+
+``` bash
+├── dva
+|  ├── dynamic.js
+|  ├── fetch.js - fetch对象，直接基于isomorphic-fetch暴露
+|  ├── router.js
+|  ├── saga.js
+|  ├── src
+|  |  ├── dynamic.js
+|  |  └── index.js - 入口，暴露dva方法，调用dva-core的create完成app对象返回出去；提供pacthHistory方法对history包的listen方法进行增强，提供给dva的model中的subscriptions使用
+|  ├── warnAboutDeprecatedCJSRequire.js
+├── dva-core
+|  ├── saga.js
+|  ├── src
+|  |  ├── Plugin.js
+|  |  ├── checkModel.js
+|  |  ├── constants.js
+|  |  ├── createPromiseMiddleware.js
+|  |  ├── createStore.js - 基于redux的createStore创建store
+|  |  ├── getReducer.js - 获取model上的reducers
+|  |  ├── getSaga.js - 提供getSaga方法，给每一个model的effects，生成一个watcher，用于在index.js中传递给redux-saga
+|  |  ├── handleActions.js
+|  |  ├── index.js - 提供create方法，创建app对象供dva方法返回，其提供app.start方法，完成对store的初始化以及redux-saga的调用，dva.model实际调用injectModel方法，用来注入model对象
+|  |  ├── prefixNamespace.js
+|  |  ├── prefixType.js
+|  |  ├── prefixedDispatch.js
+|  |  ├── subscription.js
+|  |  └── utils.js
+|  └── yarn.lock
+├── dva-immer
+|  ├── src
+|  |  └── index.js
+└── dva-loading
+   ├── src
+   |  └── index.js
+```
+
+
+## 知识点
+
+### model的流程
+
+通过调用dva.model()方法来注入model，方法位于dva-core/src/index.js的injectModel函数，整个model文件内容举例：
+
+``` js
+import * as usersService from '../services/users';
+// User对应的model
+export default {
+  namespace: 'users',
+  // redux对应的state和reducers
+  state: {
+    list: [],
+    total: null,
+    page: null,
+  },
+  reducers: {
+    save(state, { payload: { data: list, total, page } }) {
+      return { ...state, list, total, page };
+    },
+  },
+  // effects内容就对标了redux-saga中的saga
+  effects: {
+    // 发请求拿list
+    *fetch({ payload: { page = 1 } }, { call, put }) {
+      const { data, headers } = yield call(usersService.fetch, { page });
+      yield put({
+        type: 'save',
+        payload: {
+          data,
+          total: parseInt(headers['x-total-count'], 10),
+          page: parseInt(page, 10),
+        },
+      });
+    },
+    *remove({ payload: id }, { call, put }) {
+      yield call(usersService.remove, id);
+      yield put({ type: 'reload' });
+    },
+    // 对标dispatch('users/patch')
+    *patch({ payload: { id, values } }, { call, put }) {
+      yield call(usersService.patch, id, values);
+      yield put({ type: 'reload' });
+    },
+    *create({ payload: values }, { call, put }) {
+      yield call(usersService.create, values);
+      yield put({ type: 'reload' });
+    },
+    // reload
+    *reload(action, { put, select }) {
+      const page = yield select(state => state.users.page);
+      yield put({ type: 'fetch', payload: { page } });
+    },
+  },
+  // 对所有的监听进行统一的封装，到subscription中。
+  // 其history基于第三方库history
+  subscriptions: {
+    setup({ dispatch, history }) {
+      return history.listen(({ pathname, query }) => {
+        if (pathname === '/users') {
+          dispatch({ type: 'fetch', payload: query });
+        }
+      });
+    },
+  },
+};
+
+```
+
+其中effects对标redux-saga用法中的sagas，参考[一个redux-saga简单示例](https://github.com/FunnyLiu/redux-saga/blob/readsource/examples/async/src/sagas/index.js#L27)；reducers和state对标redux基本的；subscription中的history对标了第三方包history。
+
+---
 
 
 English | [简体中文](./README_zh-CN.md)

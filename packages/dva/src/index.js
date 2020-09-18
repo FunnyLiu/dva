@@ -19,7 +19,7 @@ import * as routerRedux from 'connected-react-router';
 const { connectRouter, routerMiddleware } = routerRedux;
 const { isFunction } = utils;
 const { useHistory, useLocation, useParams, useRouteMatch } = router;
-
+// 对外暴露的dva函数
 export default function(opts = {}) {
   const history = opts.history || createHashHistory();
   const createOpts = {
@@ -37,6 +37,7 @@ export default function(opts = {}) {
   const app = create(opts, createOpts);
   const oldAppStart = app.start;
   app.router = router;
+  // 通过start方法来初始化
   app.start = start;
   return app;
 
@@ -47,7 +48,7 @@ export default function(opts = {}) {
     );
     app._router = router;
   }
-
+  // 传入一个dom
   function start(container) {
     // 允许 container 是字符串，然后用 querySelector 找元素
     if (isString(container)) {
@@ -63,7 +64,7 @@ export default function(opts = {}) {
 
     // 路由必须提前注册
     invariant(app._router, `[app.start] router must be registered before app.start()`);
-
+    // 通过某个hack的方式来兼容新老逻辑
     if (!app._store) {
       oldAppStart.call(app);
     }
@@ -90,21 +91,23 @@ function isHTMLElement(node) {
 function isString(str) {
   return typeof str === 'string';
 }
-
+// 高阶组件暴露一个Provider
 function getProvider(store, app, router) {
   const DvaRoot = extraProps => (
     <Provider store={store}>{router({ app, history: app._history, ...extraProps })}</Provider>
   );
   return DvaRoot;
 }
-
+// 通过react api render dom
 function render(container, store, app, router) {
   const ReactDOM = require('react-dom'); // eslint-disable-line
   ReactDOM.render(React.createElement(getProvider(store, app, router)), container);
 }
 
 function patchHistory(history) {
+  //对原有方法进行拦截
   const oldListen = history.listen;
+  // 封装subscription中history.listen方法
   history.listen = callback => {
     // TODO: refact this with modified ConnectedRouter
     // Let ConnectedRouter to sync history to store first
@@ -123,6 +126,7 @@ function patchHistory(history) {
         cbStr.indexOf('.inTimeTravelling') > -1 &&
         cbStr.indexOf('arguments[2]') > -1);
     callback(history.location, history.action);
+    //再进行AOP增强
     return oldListen.call(history, (...args) => {
       if (isConnectedRouterHandler) {
         callback(...args);

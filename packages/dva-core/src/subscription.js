@@ -8,6 +8,7 @@ export function run(subs, model, app, onError) {
   for (const key in subs) {
     if (Object.prototype.hasOwnProperty.call(subs, key)) {
       const sub = subs[key];
+      // 执行subscriptions中的方法，将store上的dispatch和app的history传入
       const unlistener = sub(
         {
           dispatch: prefixedDispatch(app._store.dispatch, model),

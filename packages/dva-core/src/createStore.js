@@ -3,7 +3,7 @@ import flatten from 'flatten';
 import invariant from 'invariant';
 import win from 'global/window';
 import { returnSelf, isArray } from './utils';
-
+// 基于redux的createStore来生成store
 export default function({
   reducers,
   initialState,
@@ -32,6 +32,6 @@ export default function({
       : compose;
 
   const enhancers = [applyMiddleware(...middlewares), ...extraEnhancers];
-
+  // 传入reducer和state
   return createStore(reducers, initialState, composeEnhancers(...enhancers));
 }

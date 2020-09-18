@@ -30,6 +30,7 @@ const dvaModel = {
  * @param hooksAndOpts
  * @param createOpts
  */
+// 通过该方法创建的app对象，作为dva方法的返回值
 export function create(hooksAndOpts = {}, createOpts = {}) {
   const { initialReducer, setupApp = noop } = createOpts;
 
@@ -51,6 +52,7 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
    *
    * @param m {Object} model to register
    */
+  // 将传入的model挂载在app._models上
   function model(m) {
     if (process.env.NODE_ENV !== 'production') {
       checkModel(m, app._models);
@@ -68,6 +70,8 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
    * @param unlisteners
    * @param m
    */
+  // 注入model对象的方法
+  //unlisteners为观察者对象
   function injectModel(createReducer, onError, unlisteners, m) {
     m = model(m);
 
@@ -155,6 +159,8 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
    *
    * @returns void
    */
+  // 启动方法
+  // 完成对store初始化，以及redux-saga的调用
   function start() {
     // Global error handler
     const onError = (err, extension) => {
@@ -176,8 +182,12 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
     const sagas = [];
     const reducers = { ...initialReducer };
     for (const m of app._models) {
+      // 取到每个model的reducers
       reducers[m.namespace] = getReducer(m.reducers, m.state, plugin._handleActions);
       if (m.effects) {
+        // 针对每一个model的effects，都去创建一个saga对象，然后传递给redux-saga
+        // saga对象为generator
+        // 所有model的effects部分对标redux-saga用法中的sagas文件
         sagas.push(app._getSaga(m.effects, m, onError, plugin.get('onEffect'), hooksAndOpts));
       }
     }
@@ -192,6 +202,7 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
 
     // Create store
     app._store = createStore({
+      // 传入reducers
       reducers: createReducer(),
       initialState: hooksAndOpts.initialState || {},
       plugin,
@@ -222,8 +233,10 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
 
     // Run subscriptions
     const unlisteners = {};
+    // 对subscription进行处理
     for (const model of this._models) {
       if (model.subscriptions) {
+        // 获取到观察者对象
         unlisteners[model.namespace] = runSubscription(model.subscriptions, model, app, onError);
       }
     }
@@ -238,6 +251,7 @@ export function create(hooksAndOpts = {}, createOpts = {}) {
      *
      * @returns {Object}
      */
+    // 基于redux的combineReducers来联合reducers
     function createReducer() {
       return reducerEnhancer(
         combineReducers({

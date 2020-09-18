@@ -3,7 +3,13 @@ import warning from 'warning';
 import { effects as sagaEffects } from 'redux-saga';
 import { NAMESPACE_SEP } from './constants';
 import prefixType from './prefixType';
-
+// 对于每一个 effect，getSaga 生成了一个 watcher ，
+//并使用 saga 函数的 fork 将该函数切分到另一个单独的线程中去
+//（生成了一个 task 对象）。
+//同时为了方便对该线程进行控制，在此 fork 了一个 generator 函数。
+//在该函数中拦截了取消 effect 的 action
+//（事实上，应该是卸载effect 所在 model 的 action），
+//一旦监听到则立刻取消分出去的 task 线程。
 export default function getSaga(effects, model, onError, onEffect, opts = {}) {
   return function*() {
     for (const key in effects) {
